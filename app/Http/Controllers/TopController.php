@@ -8,31 +8,31 @@ use Illuminate\Http\Request;
 use App\Services\StoryService;
 use Illuminate\Support\Facades\Log;
 use SymbolSdk\CryptoTypes\PrivateKey;
-
+use SymbolSdk\Symbol\Models\UnresolvedAddress;
 class TopController extends Controller
 {
     public function toppage()
     {
         $symbol = app('symbol.config');
-        $accountNFTs = AccountService::getAccountMosaics($symbol['testUserAccount']->address); //とりあえずNFTに限らず全モザイクを取得してます
-
-
-        //テスト用、ユーザーにクレデンシャルモザイクを送る
         $testUserAccount = $symbol['testUserAccount'];
-        $txHash = AccountService::sendUserCredentialMosaic($testUserAccount->address);
-        Log::debug("sendUserCredentialMosaic done");
-        Log::debug(strval($txHash));
-        //テスト用ここまで
 
-        //テスト用、ユーザーにNFTモザイクを送る
-        // $testUserAccount = $symbol['testUserAccount'];
-        // $txHash = NFTService::mintNFT("NFT送信テスト2だよ", $testUserAccount->address);
+        $accountMosaics = AccountService::getAccountMosaics($symbol['testUserAccount']->address); //とりあえずNFTに限らず全モザイクを取得してます
+
+
+        // テスト用、ユーザーにクレデンシャルモザイクを送る
+        $txHash = AccountService::sendUserCredentialMosaic(new UnresolvedAddress("TACGNHY75AELDXIM74CLVCHWZLF7YYBSEVT7RSI"));
+        Log::debug("sendUserCredentialMosaic done");
+        Log::debug($txHash);
+        // テスト用ここまで
+
+        // テスト用、ユーザーにNFTモザイクを送る
+        // $txHash = NFTService::mintNFT("NFT送信テスト3だよ", $testUserAccount->address);
         // Log::debug("mintNFT done");
-        // Log::debug(strval($txHash));
-        //テスト用ここまで
+        // Log::debug($txHash);
+        // テスト用ここまで
 
         return view('top', [
-            'accountNFTs' => $accountNFTs,
+            'accountNFTs' => $accountMosaics,
         ]);
         // return view('top', StoryService::allOfficialAccountMosaics());
     }

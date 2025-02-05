@@ -3,19 +3,13 @@
 namespace App\Services;
 
 use Exception;
-use SymbolSdk\CryptoTypes\PrivateKey;
-use SymbolSdk\Symbol\Models\PublicKey;
 use Illuminate\Support\Facades\Log;
 use SymbolSdk\Symbol\Models\MosaicFlags;
 use SymbolSdk\Symbol\IdGenerator;
 use SymbolSdk\Symbol\Models\NetworkType;
-
-use SymbolSdk\Symbol\Models\MosaicSupplyRevocationTransactionV1;
-use SymbolSdk\Symbol\Models\TransferTransactionV1;
 use SymbolSdk\Symbol\Models\MosaicNonce;
 use SymbolSdk\Symbol\Models\BlockDuration;
 use SymbolSdk\Symbol\Models\UnresolvedMosaicId;
-use SymbolSdk\Symbol\Models\UnresolvedMosaic;
 use SymbolSdk\Symbol\Models\MosaicSupplyChangeAction;
 use SymbolSdk\Symbol\Models\Amount;
 use SymbolSdk\Symbol\Models\EmbeddedMosaicDefinitionTransactionV1;
@@ -25,11 +19,6 @@ use SymbolSdk\Symbol\Models\MosaicId;
 use SymbolSdk\Symbol\Models\AggregateCompleteTransactionV2;
 use SymbolSdk\Symbol\Models\Timestamp;
 use SymbolSdk\Symbol\Models\UnresolvedAddress;
-use SymbolRestClient\Configuration;
-use SymbolRestClient\Api\TransactionRoutesApi;
-use SymbolRestClient\Api\TransactionStatusRoutesApi;
-use SymbolRestClient\Api\AccountRoutesApi;
-use SymbolRestClient\Api\MosaicRoutesApi;
 use SymbolSdk\Symbol\Address;
 
 /**
@@ -74,10 +63,14 @@ class NFTService
     }
 
     /**
+     * NFTを発行&送信する。
+     * 引数二つが存在するかのチェックは行なっていない。
+     *
      * @param $StoryAddress URL or Symbolアドレス、Unsolvedかどうかわかんないので両方入れてる
      * @param $AccountAddress Accountクラスに保持してあるアドレスはUnsolvedAddress
      *
      * @return Hash256 トランザクションハッシュ
+     *
      */
     public static function mintNFT(
         Address|UnresolvedAddress|String $StoryAddress,

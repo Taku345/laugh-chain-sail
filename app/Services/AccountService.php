@@ -20,7 +20,7 @@ use SymbolSdk\Symbol\Models\NetworkType;
 use SymbolSdk\Symbol\Models\Timestamp;
 use SymbolSdk\Symbol\Models\UnresolvedAddress;
 use Illuminate\Support\Facades\Log;
-
+use SymbolSdk\Symbol\Models\Hash256;
 
 class AccountService
 {
@@ -106,29 +106,45 @@ class AccountService
      */
     public static function sendUserCredentialMosaic(UnresolvedAddress $recipientAddress)
     {
-        // ServiceProviderからsymbol操作用クラスを取得
-        $symbol = app('symbol.config');
-        $facade = $symbol['facade'];
-        $transactionRoutesApi = $symbol['transactionRoutesApi'];
-        $accountRoutesApi = $symbol['accountRoutesApi'];
-        $officialAccount = $symbol['officialAccount'];
+        if (self::hasUserCredentialMosaic($recipientAddress)) {
+            return false;
+        }
 
-        // $newUserAddressのユーザーが既にUserCridencialMosaicを持っていないことを確認
+        $transaction = self::createCredentialMosaicTransaction($recipientAddress);
+        return self::announceAndGetHash($transaction);
+    }
+
+    /**
+     * アカウントが既にUserCredentialMosaicを持っているか確認
+     */
+    private static function hasUserCredentialMosaic(UnresolvedAddress $address): bool
+    {
+        $accountRoutesApi = app('symbol.config')['accountRoutesApi'];
+
         try {
-            $accountInfo = $accountRoutesApi->getAccountInfo($recipientAddress);
+            $accountInfo = $accountRoutesApi->getAccountInfo($address);
+            foreach($accountInfo->getAccount()->getMosaics() as $mosaic) {
+                if(strval($mosaic->getId()) == env('USER_CREDENTIAL_MOSAIC_ID')) return true;
+            }
         } catch (\Exception $e) {
-            throw new \Exception("アカウントが存在しないor一度もTxに関わっていない");//アカウントが存在しないor一度もTxに関わっていないか判別方法を知らないので、暫定で後者とみなす
-        }
-        foreach($accountInfo->getAccount()->getMosaics() as $mosaic) {
-            if(strval($mosaic->getId()) == env('USER_CREDENTIAL_MOSAIC_ID')) return false;
+            // txに一度も関わっていないアカウントにも送信したいので何もしない
         }
 
-        // モザイク送信
+        return false;
+    }
+
+    /**
+     * CredentialMosaic送信用のトランザクションを作成
+     */
+    private static function createCredentialMosaicTransaction(UnresolvedAddress $recipientAddress): TransferTransactionV1
+    {
+        $symbol = app('symbol.config');
         $messageData = "\0このモザイクは所有アカウントがLaughChainユーザーであることを示します";
-        $transferTransaction = new TransferTransactionV1(
+
+        return new TransferTransactionV1(
             network: new NetworkType(NetworkType::TESTNET),
-            signerPublicKey: $officialAccount->publicKey,
-            deadline: new Timestamp($facade->now()->addHours(2)),
+            signerPublicKey: $symbol['officialAccount']->publicKey,
+            deadline: new Timestamp($symbol['facade']->now()->addHours(2)),
             recipientAddress: $recipientAddress,
             mosaics: [
                 new UnresolvedMosaic(
@@ -138,19 +154,28 @@ class AccountService
             ],
             message: $messageData
         );
+    }
 
-        $facade->setMaxFee($transferTransaction, 100);  // 手数料
-        $signature = $officialAccount->signTransaction($transferTransaction);
-        $payload = $facade->attachSignature($transferTransaction, $signature);
+    /**
+     * トランザクションを送信してハッシュを取得
+     */
+    private static function announceAndGetHash(TransferTransactionV1 $transaction)
+    {
+        $symbol = app('symbol.config');
+        $facade = $symbol['facade'];
+
+        $facade->setMaxFee($transaction, 100);
+        $signature = $symbol['officialAccount']->signTransaction($transaction);
+        $payload = $facade->attachSignature($transaction, $signature);
 
         try {
-            $result = $transactionRoutesApi->announceTransaction($payload);
+            $result = $symbol['transactionRoutesApi']->announceTransaction($payload);
             echo $result . PHP_EOL;
         } catch (Exception $e) {
             echo 'Exception when calling TransactionRoutesApi->announceTransaction: ', $e->getMessage(), PHP_EOL;
         }
 
-        return $facade->hashTransaction($transferTransaction);
+        return $facade->hashTransaction($transaction);
     }
 
     /**
